@@ -140,20 +140,20 @@ export default function ExpensesLedgerPage() {
   };
 
   // Fetch total income from finance table
-  const fetchTotalIncome = async () => {
-    const { data, error } = await supabase
-      .from("finance")
-      .select("amount_paid");
+ const fetchTotalIncome = async () => {
+  const { data, error } = await supabase
+    .from("finance")
+    .select("amount_paid")
+    .neq("mode_of_payment", "Bank"); // Exclude rows where mode_of_payment is 'Bank'
 
-    if (error) {
-      alert("Error fetching total income: " + error.message);
-      return;
-    }
+  if (error) {
+    alert("Error fetching total income: " + error.message);
+    return;
+  }
 
-    const total = data.reduce((sum, entry) => sum + (entry.amount_paid || 0), 0);
-    setTotalIncome(total);
-  };
-
+  const total = data.reduce((sum, entry) => sum + (entry.amount_paid || 0), 0);
+  setTotalIncome(total);
+};
   // Calculate total expenses
   const calculateTotalExpenses = (data: any[]) => {
     const total = data.reduce((sum, entry) => sum + (entry.amount_spent || 0), 0);
