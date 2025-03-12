@@ -148,10 +148,6 @@ export default function FinancialSummaryPage() {
           <p className="text-gray-600 text-lg">UGX {financialSummary.cash}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-xl font-semibold">Bank</h3>
-          <p className="text-gray-600 text-lg">UGX {financialSummary.bank}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-xl font-semibold">Mobile Money</h3>
           <p className="text-gray-600 text-lg">UGX {financialSummary.mobileMoney}</p>
         </div>
@@ -171,12 +167,6 @@ export default function FinancialSummaryPage() {
             <p className="text-gray-600">UGX {financialSummary.airtel}</p>
           </div>
         )}
-        {Object.entries(financialSummary.bankNames).map(([bankName, amount]: [string, number]) => (
-          <div key={bankName} className="bg-white p-4 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold">{bankName}</h3>
-            <p className="text-gray-600">UGX {amount}</p>
-          </div>
-        ))}
       </div>
 
       {/* Make Deposit Button */}
@@ -226,7 +216,6 @@ export default function FinancialSummaryPage() {
             <select value={modeOfPayment} onChange={(e) => setModeOfPayment(e.target.value)} className="border p-2 rounded w-full mb-2">
               <option value="">Select Mode</option>
               <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
               <option value="Mobile Money">Mobile Money</option>
             </select>
             {modeOfPayment === "Mobile Money" && (
