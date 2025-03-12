@@ -38,7 +38,8 @@ export default function ExpensesLedgerPage() {
   const fetchBalanceForward = async () => {
     const { data, error } = await supabase
       .from("finance")
-      .select("amount_available");
+      .select("amount_available")
+      .neq("mode_of_payment", "Bank");
 
     if (error) {
       alert("Error fetching balance forward: " + error.message);
