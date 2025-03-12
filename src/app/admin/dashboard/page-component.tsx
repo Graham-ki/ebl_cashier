@@ -128,7 +128,7 @@ const PageComponent = ({
           </CardContent>
         </Card>
 
-        {/* Latest Users */}
+        {/* Latest Users 
         <Card className='shadow-xl hover:shadow-2xl transition-shadow duration-300'>
           <CardHeader>
             <CardTitle>Latest Users</CardTitle>
@@ -151,7 +151,7 @@ const PageComponent = ({
               </TableBody>
             </Table>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
     </div>
   );
