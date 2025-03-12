@@ -184,7 +184,7 @@ export default function FinancialSummaryPage() {
           <tr>
             <th className="border p-2">Amount</th>
             <th className="border p-2">Mode</th>
-            <th className="border p-2">Service Provider</th>
+            <th className="border p-2">Account</th>
             <th className="border p-2">Date</th>
             <th className="border p-2">Action</th>
           </tr>
