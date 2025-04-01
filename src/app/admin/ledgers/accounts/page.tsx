@@ -33,7 +33,7 @@ export default function FinancialSummaryPage() {
   // Fetch all ledger entries
   const fetchAllLedgerEntries = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("finance").select("*");
+    const { data, error } = await supabase.from("finance").select("*").eq("submittedby", "Cashier");
 
     if (error) {
       alert("Error fetching ledger entries: " + error.message);
