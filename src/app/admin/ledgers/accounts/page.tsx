@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { sub } from "date-fns";
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -28,13 +27,13 @@ export default function FinancialSummaryPage() {
     mobileMoney: 0,
     mtn: 0,
     airtel: 0,
-    bankNames: {} as { [key: string]: number }, // Track bank names and their amounts
+    bankNames: {} as { [key: string]: number },
   });
 
   // Fetch all ledger entries
   const fetchAllLedgerEntries = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("finance").select("*").eq("submittedby", "Cashier");
+    const { data, error } = await supabase.from("finance").select("*");
 
     if (error) {
       alert("Error fetching ledger entries: " + error.message);
@@ -55,7 +54,7 @@ export default function FinancialSummaryPage() {
       mobileMoney: 0,
       mtn: 0,
       airtel: 0,
-      bankNames: {} as { [key: string]: number }, // Track bank names and their amounts
+      bankNames: {} as { [key: string]: number },
     };
 
     ledger.forEach((entry) => {
@@ -80,18 +79,21 @@ export default function FinancialSummaryPage() {
     setFinancialSummary(summary);
   };
 
-  // Handle deposit submission
+  // Handle deposit submission - UPDATED
   const handleDepositSubmit = async () => {
     if (!amountPaid || !modeOfPayment) {
       alert("Please fill in all required fields.");
       return;
     }
 
+    // Convert amount to number if it's a string
+    const amount = typeof amountPaid === 'string' ? parseFloat(amountPaid) : amountPaid;
+
     const depositData: any = {
-      amount_paid: amountPaid,
+      amount_paid: amount,
+      amount_available: amount, // Set both fields to the same value
       mode_of_payment: modeOfPayment,
-      submittedby: "Cashier",
-      amount_available: amountPaid,
+      submittedby: "You",
     };
 
     if (modeOfPayment === "Mobile Money") {
@@ -107,6 +109,12 @@ export default function FinancialSummaryPage() {
       return;
     }
 
+    // Reset form fields
+    setAmountPaid("");
+    setModeOfPayment("");
+    setModeOfMobileMoney("");
+    setBankName("");
+
     alert("Deposit successfully recorded!");
     setIsModalOpen(false);
     fetchAllLedgerEntries();
@@ -117,23 +125,21 @@ export default function FinancialSummaryPage() {
     fetchAllLedgerEntries();
   }, []);
 
-  //delete ledger
+  // Delete ledger entry
   const deleteFinanceEntry = async (entryId: number) => {
     const { error } = await supabase
       .from('finance')
       .delete()
-      .eq('id', entryId); // Delete entry by ID
-  
+      .eq('id', entryId);
+
     if (error) {
       console.error('Error deleting finance entry:', error);
       alert('Failed to delete entry.');
     } else {
       alert('Entry deleted successfully.');
-      // Refresh the list after deletion
-      fetchAllLedgerEntries(); 
+      fetchAllLedgerEntries();
     }
   };
-  
 
   return (
     <div className="p-6">
@@ -145,11 +151,15 @@ export default function FinancialSummaryPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-xl font-semibold">Cash</h3>
-          <p className="text-gray-600 text-lg">UGX {financialSummary.cash}</p>
+          <p className="text-gray-600 text-lg font-mono">UGX {financialSummary.cash}</p>
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold">Bank</h3>
+          <p className="text-gray-600 text-lg font-mono">UGX {financialSummary.bank}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-xl font-semibold">Mobile Money</h3>
-          <p className="text-gray-600 text-lg">UGX {financialSummary.mobileMoney}</p>
+          <p className="text-gray-600 text-lg font-mono">UGX {financialSummary.mobileMoney}</p>
         </div>
       </div>
 
@@ -158,15 +168,21 @@ export default function FinancialSummaryPage() {
         {financialSummary.mtn > 0 && (
           <div className="bg-white p-4 rounded-lg shadow-md">
             <h3 className="text-lg font-semibold">MTN</h3>
-            <p className="text-gray-600">UGX {financialSummary.mtn}</p>
+            <p className="text-gray-600 font-mono">UGX {financialSummary.mtn}</p>
           </div>
         )}
         {financialSummary.airtel > 0 && (
           <div className="bg-white p-4 rounded-lg shadow-md">
             <h3 className="text-lg font-semibold">Airtel</h3>
-            <p className="text-gray-600">UGX {financialSummary.airtel}</p>
+            <p className="text-gray-600 font-mono">UGX {financialSummary.airtel}</p>
           </div>
         )}
+        {Object.entries(financialSummary.bankNames).map(([bankName, amount]: [string, number]) => (
+          <div key={bankName} className="bg-white p-4 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold">{bankName}</h3>
+            <p className="text-gray-600 font-mono">UGX {amount}</p>
+          </div>
+        ))}
       </div>
 
       {/* Make Deposit Button */}
@@ -184,7 +200,8 @@ export default function FinancialSummaryPage() {
           <tr>
             <th className="border p-2">Amount</th>
             <th className="border p-2">Mode</th>
-            <th className="border p-2">Account</th>
+            <th className="border p-2">Service Provider</th>
+            <th className="border p-2">Deposited by</th>
             <th className="border p-2">Date</th>
             <th className="border p-2">Action</th>
           </tr>
@@ -192,16 +209,19 @@ export default function FinancialSummaryPage() {
         <tbody>
           {ledger.map((entry) => (
             <tr key={entry.id}>
-              <td className="border p-2">UGX {entry.amount_paid}</td>
+              <td className="border p-2 font-mono">UGX {entry.amount_paid}</td>
               <td className="border p-2">{entry.mode_of_payment}</td>
               <td className="border p-2">{entry.mode_of_mobilemoney || entry.bank_name || "-"}</td>
-                <td className="border p-2">{new Date(entry.created_at).toLocaleDateString()}</td>
-              <td className="border p-2"><button
-                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-700"
-                onClick={() => deleteFinanceEntry(entry.id)}
+              <td className="border p-2">{entry.submittedby}</td>
+              <td className="border p-2">{new Date(entry.created_at).toLocaleDateString()}</td>
+              <td>
+                <button
+                  className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-700"
+                  onClick={() => deleteFinanceEntry(entry.id)}
                 >
-                Delete
-              </button></td>
+                  Delete
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -212,23 +232,49 @@ export default function FinancialSummaryPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg w-96">
             <h2 className="text-xl font-semibold mb-4">Make a Deposit</h2>
-            <input type="number" placeholder="Amount" value={amountPaid} onChange={(e) => setAmountPaid(parseFloat(e.target.value))} className="border p-2 rounded w-full mb-2" />
-            <select value={modeOfPayment} onChange={(e) => setModeOfPayment(e.target.value)} className="border p-2 rounded w-full mb-2">
+            <input 
+              type="number" 
+              placeholder="Amount" 
+              value={amountPaid} 
+              onChange={(e) => setAmountPaid(e.target.value === "" ? "" : parseFloat(e.target.value))} 
+              className="border p-2 rounded w-full mb-2" 
+            />
+            <select 
+              value={modeOfPayment} 
+              onChange={(e) => setModeOfPayment(e.target.value)} 
+              className="border p-2 rounded w-full mb-2"
+            >
               <option value="">Select Mode</option>
               <option value="Cash">Cash</option>
+              <option value="Bank">Bank</option>
               <option value="Mobile Money">Mobile Money</option>
             </select>
             {modeOfPayment === "Mobile Money" && (
-              <select value={modeOfMobileMoney} onChange={(e) => setModeOfMobileMoney(e.target.value)} className="border p-2 rounded w-full mb-2">
+              <select 
+                value={modeOfMobileMoney} 
+                onChange={(e) => setModeOfMobileMoney(e.target.value)} 
+                className="border p-2 rounded w-full mb-2"
+              >
                 <option value="">Select Provider</option>
                 <option value="MTN">MTN</option>
                 <option value="Airtel">Airtel</option>
               </select>
             )}
             {modeOfPayment === "Bank" && (
-              <input type="text" placeholder="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} className="border p-2 rounded w-full mb-2" />
+              <input 
+                type="text" 
+                placeholder="Bank Name" 
+                value={bankName} 
+                onChange={(e) => setBankName(e.target.value)} 
+                className="border p-2 rounded w-full mb-2" 
+              />
             )}
-            <button onClick={handleDepositSubmit} className="bg-green-500 text-white p-2 rounded w-full">Submit Deposit</button>
+            <button 
+              onClick={handleDepositSubmit} 
+              className="bg-green-500 text-white p-2 rounded w-full"
+            >
+              Submit Deposit
+            </button>
           </div>
         </div>
       )}
