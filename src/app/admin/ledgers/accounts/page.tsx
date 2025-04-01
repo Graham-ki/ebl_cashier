@@ -212,7 +212,7 @@ export default function FinancialSummaryPage() {
               <td className="border p-2 font-mono">UGX {entry.amount_paid}</td>
               <td className="border p-2">{entry.mode_of_payment}</td>
               <td className="border p-2">{entry.mode_of_mobilemoney || entry.bank_name || "-"}</td>
-              <td className="border p-2">{entry.submittedby}</td>
+              <td className="border p-2">You</td>
               <td className="border p-2">{new Date(entry.created_at).toLocaleDateString()}</td>
               <td>
                 <button
