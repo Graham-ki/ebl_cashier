@@ -93,6 +93,7 @@ export default function FinancialSummaryPage() {
       amount_available: amount, // Set both fields to the same value
       mode_of_payment: modeOfPayment,
       submittedby: "Cashier",
+      amount_paid: amount
     };
 
     if (modeOfPayment === "Mobile Money") {
