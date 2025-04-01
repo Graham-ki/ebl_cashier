@@ -90,7 +90,6 @@ export default function FinancialSummaryPage() {
     const amount = typeof amountPaid === 'string' ? parseFloat(amountPaid) : amountPaid;
 
     const depositData: any = {
-      amount_paid: amount,
       amount_available: amount, // Set both fields to the same value
       mode_of_payment: modeOfPayment,
       submittedby: "Cashier",
