@@ -39,6 +39,7 @@ export default function ExpensesLedgerPage() {
     const { data, error } = await supabase
       .from("finance")
       .select("amount_available")
+      .eq("submittedby", "Cashier")
       .neq("mode_of_payment", "Bank");
 
     if (error) {
@@ -145,6 +146,7 @@ export default function ExpensesLedgerPage() {
   const { data, error } = await supabase
     .from("finance")
     .select("amount_paid")
+    .eq("submittedby", "Cashier")
     .neq("mode_of_payment", "Bank"); // Exclude rows where mode_of_payment is 'Bank'
 
   if (error) {
