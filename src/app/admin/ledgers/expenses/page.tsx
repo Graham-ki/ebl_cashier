@@ -147,7 +147,7 @@ export default function ExpensesLedgerPage() {
  const fetchTotalIncome = async () => {
   const { data, error } = await supabase
     .from("finance")
-    .select("amount_paid").
+    .select("amount_paid")
     .neq("mode_of_payment", "Bank")
     .eq("submittedby", "Cashier"); // Exclude rows where mode_of_payment is 'Bank'
 
