@@ -55,7 +55,8 @@ export default function ExpensesLedgerPage() {
   const fetchModes = async () => {
     const { data, error } = await supabase
       .from("finance")
-      .select("mode_of_payment");
+      .select("mode_of_payment")
+      .eq("submittedby", "Cashier");
 
     if (error) {
       alert("Error fetching modes of payment: " + error.message);
@@ -121,7 +122,7 @@ export default function ExpensesLedgerPage() {
     }
 
     // Build the query
-    let query = supabase.from("expenses").select("*");
+    let query = supabase.from("expenses").select("*").eq("submittedby", "Cashier");
 
     // Apply date filter if applicable
     if (startDate && endDate) {
@@ -210,7 +211,8 @@ export default function ExpensesLedgerPage() {
     const { data: financeData, error: financeError } = await supabase
       .from("finance")
       .select("amount_available")
-      .eq("mode_of_payment", formData.mode_of_payment);
+      .eq("mode_of_payment", formData.mode_of_payment)
+      .eq("submittedby", "Cashier");
 
     if (financeError) {
       alert("Error fetching finance data: " + financeError.message);
