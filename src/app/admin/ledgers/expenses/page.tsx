@@ -39,8 +39,8 @@ export default function ExpensesLedgerPage() {
     const { data, error } = await supabase
       .from("finance")
       .select("amount_available")
-      .eq("submittedby", "Cashier")
-      .neq("mode_of_payment", "Bank");
+      .neq("mode_of_payment", "Bank")
+      .eq("submittedby", "Cashier");
 
     if (error) {
       alert("Error fetching balance forward: " + error.message);
@@ -78,6 +78,7 @@ export default function ExpensesLedgerPage() {
     const { data, error } = await supabase
       .from("finance")
       .select(mode === "Bank" ? "bank_name" : "mode_of_mobilemoney")
+      .eq("submittedby", "Cashier")
       .eq("mode_of_payment", mode) as { data: { bank_name?: string; mode_of_mobilemoney?: string }[], error: any };
 
     if (error) {
@@ -146,9 +147,9 @@ export default function ExpensesLedgerPage() {
  const fetchTotalIncome = async () => {
   const { data, error } = await supabase
     .from("finance")
-    .select("amount_paid")
-    .eq("submittedby", "Cashier")
-    .neq("mode_of_payment", "Bank"); // Exclude rows where mode_of_payment is 'Bank'
+    .select("amount_paid").
+    .neq("mode_of_payment", "Bank")
+    .eq("submittedby", "Cashier"); // Exclude rows where mode_of_payment is 'Bank'
 
   if (error) {
     alert("Error fetching total income: " + error.message);
@@ -232,7 +233,8 @@ export default function ExpensesLedgerPage() {
     const { error: updateError } = await supabase
       .from("finance")
       .update({ amount_available: updatedAmountAvailable })
-      .eq("mode_of_payment", formData.mode_of_payment);
+      .eq("mode_of_payment", formData.mode_of_payment)
+      .eq("submittedby", "Cashier");
 
     if (updateError) {
       alert("Error updating finance data: " + updateError.message);
