@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { FiDollarSign, FiCreditCard, FiHome } from 'react-icons/fi';
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -72,7 +71,6 @@ export default function LedgerPage() {
     {
       title: "Expenses Ledger",
       description: "Track company expenses like materials, wages, and other costs",
-      icon: <FiDollarSign className="text-red-500" size={24} />,
       path: "/admin/ledgers/expenses",
       bgColor: "bg-red-50 hover:bg-red-100",
       borderColor: "border-red-200",
@@ -81,7 +79,6 @@ export default function LedgerPage() {
     {
       title: "Accounts",
       description: "Track amounts received via various company accounts",
-      icon: <FiCreditCard className="text-blue-500" size={24} />,
       path: "/admin/ledgers/accounts",
       bgColor: "bg-blue-50 hover:bg-blue-100",
       borderColor: "border-blue-200",
@@ -93,7 +90,7 @@ export default function LedgerPage() {
     <div className="container mx-auto p-4 md:p-6">
       <div className="flex flex-col items-center mb-8">
         <div className="flex items-center gap-3 mb-4">
-          <FiHome className="text-3xl text-indigo-600" />
+          <span className="text-3xl">📊</span>
           <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
             Ledger Management
           </h1>
@@ -117,7 +114,9 @@ export default function LedgerPage() {
                 </CardTitle>
               </div>
               <div className="p-3 rounded-lg bg-white shadow-sm border">
-                {card.icon}
+                <span className="text-xl">
+                  {index === 0 ? '💰' : '💳'}
+                </span>
               </div>
             </CardHeader>
             <CardContent>
@@ -139,7 +138,7 @@ export default function LedgerPage() {
 
       <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <FiDollarSign className="text-indigo-500" />
+          <span>📈</span>
           Cashier Financial Summary
         </h3>
         {loading ? (
@@ -154,11 +153,11 @@ export default function LedgerPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-xs border">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Your Total Expenses </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Expenses</p>
               <p className="text-xl font-bold">{totalExpenses.toLocaleString()} UGX</p>
             </div>
             <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-xs border">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Balances On Your Account</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Account Balances </p>
               <p className="text-xl font-bold">{accountBalances.toLocaleString()} UGX</p>
             </div>
             <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-xs border">
