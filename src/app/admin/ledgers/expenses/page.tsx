@@ -296,176 +296,195 @@ export default function ExpensesLedgerPage() {
     saveAs(csvBlob, "expenses.csv");
   };
 
-  return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6 text-center shadow-lg p-4 rounded-lg bg-blue-100 dark:bg-gray-800 dark:text-white">
-        Expenses Ledger
-      </h1>
+  return (<div className="container mx-auto p-4">
+      {/* Header */}
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold mb-2">Expenses Ledger</h1>
+        <div className="w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+      </div>
 
-      {/* Financial Summary */}
-      <div className="grid grid-cols-3 gap-4 text-white text-center mb-6">
-        <div className="p-4 bg-green-500 rounded-lg">
-          <h2 className="text-xl font-semibold">Total Income</h2>
-          <p className="text-2xl">UGX {totalIncome.toLocaleString()}</p>
+      {/* Financial Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-green-500">
+          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Total Income</h2>
+          <p className="text-2xl font-bold">UGX {totalIncome.toLocaleString()}</p>
         </div>
-        <div className="p-4 bg-red-500 rounded-lg">
-          <h2 className="text-xl font-semibold">Total Expenses</h2>
-          <p className="text-2xl">UGX {totalExpenses.toLocaleString()}</p>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-red-500">
+          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Total Expenses</h2>
+          <p className="text-2xl font-bold">UGX {totalExpenses.toLocaleString()}</p>
         </div>
-        <div className="p-4 bg-blue-500 rounded-lg">
-          <h2 className="text-xl font-semibold">Balance Forward</h2>
-          <p className="text-2xl">UGX {balanceForward.toLocaleString()}</p>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-blue-500">
+          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Balance Forward</h2>
+          <p className="text-2xl font-bold">UGX {balanceForward.toLocaleString()}</p>
         </div>
       </div>
 
-      {/* Filters and Export Button */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilter("all")}
-            className={`p-2 rounded ${filter === "all" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilter("daily")}
-            className={`p-2 rounded ${filter === "daily" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-          >
-            Daily
-          </button>
-          <button
-            onClick={() => setFilter("monthly")}
-            className={`p-2 rounded ${filter === "monthly" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setFilter("yearly")}
-            className={`p-2 rounded ${filter === "yearly" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
-          >
-            Yearly
-          </button>
+      {/* Filters and Actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div className="flex flex-wrap gap-2">
+          {(["all", "daily", "monthly", "yearly"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                filter === f
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"
+              }`}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
         </div>
         <button
           onClick={exportToCSV}
-          className="bg-green-500 text-white p-2 rounded"
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-full text-sm font-medium transition-colors"
         >
-          Download
+          <span>Download CSV</span>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
         </button>
       </div>
 
       {/* Add/Edit Expense Form */}
-      <div className="mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">
-          {editExpense ? "Edit Expense" : "Add Expense"}
+          {editExpense ? "Edit Expense" : "Add New Expense"}
         </h2>
-        <div className="grid grid-cols-3 gap-4">
-          <input
-            type="text"
-            name="item"
-            placeholder="Item"
-            value={formData.item}
-            onChange={handleInputChange}
-            className="border p-2 rounded"
-          />
-          <input
-            type="number"
-            name="amount_spent"
-            placeholder="Amount Spent"
-            value={formData.amount_spent}
-            onChange={handleInputChange}
-            className="border p-2 rounded"
-          />
-          <input
-            type="text"
-            name="department"
-            placeholder="Department"
-            value={formData.department}
-            onChange={handleInputChange}
-            className="border p-2 rounded"
-          />
-          <select
-            name="mode_of_payment"
-            value={formData.mode_of_payment}
-            onChange={handleInputChange}
-            className="border p-2 rounded"
-          >
-            <option value="">Select Account</option>
-            {modes.map((mode, index) => (
-              <option key={index} value={mode}>
-                {mode}
-              </option>
-            ))}
-          </select>
-          {formData.mode_of_payment !== "Cash" && (
-            <select
-              name="account"
-              value={formData.account}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item</label>
+            <input
+              type="text"
+              name="item"
+              placeholder="Item name"
+              value={formData.item}
               onChange={handleInputChange}
-              className="border p-2 rounded"
-              disabled={!formData.mode_of_payment}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (UGX)</label>
+            <input
+              type="number"
+              name="amount_spent"
+              placeholder="Amount"
+              value={formData.amount_spent}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
+            <input
+              type="text"
+              name="department"
+              placeholder="Department"
+              value={formData.department}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account</label>
+            <select
+              name="mode_of_payment"
+              value={formData.mode_of_payment}
+              onChange={handleInputChange}
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
             >
-              <option value="">Provider</option>
-              {subModes.map((subMode, index) => (
-                <option key={index} value={subMode}>
-                  {subMode}
+              <option value="">Select Account</option>
+              {modes.map((mode, index) => (
+                <option key={index} value={mode}>
+                  {mode}
                 </option>
               ))}
             </select>
+          </div>
+          {formData.mode_of_payment !== "Cash" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Provider</label>
+              <select
+                name="account"
+                value={formData.account}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                disabled={!formData.mode_of_payment}
+              >
+                <option value="">Select Provider</option>
+                {subModes.map((subMode, index) => (
+                  <option key={index} value={subMode}>
+                    {subMode}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
-        <button
-          onClick={submitExpense}
-          className="bg-blue-500 text-white p-2 rounded mt-2"
-        >
-          {editExpense ? "Update Expense" : "Add Expense"}
-        </button>
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={submitExpense}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+          >
+            {editExpense ? "Update Expense" : "Add Expense"}
+          </button>
+        </div>
       </div>
 
       {/* Expenses Table */}
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <table className="w-full border-collapse border mt-4">
-          <thead>
-            <tr>
-              <th className="border p-2">Item</th>
-              <th className="border p-2">Amount Spent</th>
-              <th className="border p-2">Department</th>
-              <th className="border p-2">Account</th>
-              <th className="border p-2">Provider</th>
-              <th className="border p-2">Date</th>
-              <th className="border p-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenses.map((expense) => (
-              <tr key={expense.id}>
-                <td className="border p-2">{expense.item}</td>
-                <td className="border p-2">UGX {expense.amount_spent}</td>
-                <td className="border p-2">{expense.department}</td>
-                <td className="border p-2">{expense.mode_of_payment}</td>
-                <td className="border p-2">{expense.account}</td>
-                <td className="border p-2">{new Date(expense.date).toLocaleDateString()}</td>
-                <td className="border p-2">
-                  <button
-                    onClick={() => handleEdit(expense)}
-                    className="bg-gray-500 text-white p-1 rounded mr-2"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(expense.id)}
-                    className="bg-red-500 text-white p-1 rounded"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading expenses...</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Item</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Department</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Provider</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {expenses.map((expense) => (
+                  <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">{expense.item}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">UGX {expense.amount_spent.toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.department}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.mode_of_payment}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.account}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(expense.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleEdit(expense)}
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(expense.id)}
+                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
