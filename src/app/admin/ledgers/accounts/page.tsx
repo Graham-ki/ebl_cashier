@@ -79,18 +79,17 @@ export default function FinancialSummaryPage() {
     setFinancialSummary(summary);
   };
 
-  // Handle deposit submission - UPDATED
+  // Handle deposit submission
   const handleDepositSubmit = async () => {
     if (!amountPaid || !modeOfPayment) {
       alert("Please fill in all required fields.");
       return;
     }
 
-    // Convert amount to number if it's a string
     const amount = typeof amountPaid === 'string' ? parseFloat(amountPaid) : amountPaid;
 
     const depositData: any = {
-      amount_available: amount, // Set both fields to the same value
+      amount_available: amount,
       mode_of_payment: modeOfPayment,
       submittedby: "Cashier",
       amount_paid: amount
@@ -109,7 +108,6 @@ export default function FinancialSummaryPage() {
       return;
     }
 
-    // Reset form fields
     setAmountPaid("");
     setModeOfPayment("");
     setModeOfMobileMoney("");
@@ -120,13 +118,13 @@ export default function FinancialSummaryPage() {
     fetchAllLedgerEntries();
   };
 
-  // Fetch ledger entries on component mount
   useEffect(() => {
     fetchAllLedgerEntries();
   }, []);
 
-  // Delete ledger entry
   const deleteFinanceEntry = async (entryId: number) => {
+    if (!confirm("Are you sure you want to delete this entry?")) return;
+    
     const { error } = await supabase
       .from('finance')
       .delete()
@@ -142,139 +140,202 @@ export default function FinancialSummaryPage() {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6 text-center shadow-lg p-4 rounded-lg bg-blue-100 dark:bg-gray-800 dark:text-white">
-        Accounts Summary
-      </h1>
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="flex flex-col items-center mb-8">
+        <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+          Accounts Summary
+        </h1>
+        <p className="text-gray-600 mt-2">Cashier financial records and transactions</p>
+      </div>
 
-      {/* Major Payment Modes */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-xl font-semibold">Cash</h3>
-          <p className="text-gray-600 text-lg font-mono">UGX {financialSummary.cash}</p>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-gray-500">Cash</h3>
+              <p className="text-2xl font-bold text-blue-600">
+                UGX {financialSummary.cash.toLocaleString()}
+              </p>
+            </div>
+            <div className="p-3 bg-blue-50 rounded-lg">💰</div>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-xl font-semibold">Bank</h3>
-          <p className="text-gray-600 text-lg font-mono">UGX {financialSummary.bank}</p>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-gray-500">Bank</h3>
+              <p className="text-2xl font-bold text-green-600">
+                UGX {financialSummary.bank.toLocaleString()}
+              </p>
+            </div>
+            <div className="p-3 bg-green-50 rounded-lg">🏦</div>
+          </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-xl font-semibold">Mobile Money</h3>
-          <p className="text-gray-600 text-lg font-mono">UGX {financialSummary.mobileMoney}</p>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-gray-500">Mobile Money</h3>
+              <p className="text-2xl font-bold text-purple-600">
+                UGX {financialSummary.mobileMoney.toLocaleString()}
+              </p>
+            </div>
+            <div className="p-3 bg-purple-50 rounded-lg">📱</div>
+          </div>
         </div>
       </div>
 
-      {/* Sub Payment Modes */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Sub Categories */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {financialSummary.mtn > 0 && (
-          <div className="bg-white p-4 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold">MTN</h3>
-            <p className="text-gray-600 font-mono">UGX {financialSummary.mtn}</p>
+          <div className="bg-white p-4 rounded-lg shadow-xs border">
+            <h3 className="text-sm font-medium text-gray-500">MTN Mobile Money</h3>
+            <p className="text-lg font-semibold">UGX {financialSummary.mtn.toLocaleString()}</p>
           </div>
         )}
         {financialSummary.airtel > 0 && (
-          <div className="bg-white p-4 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold">Airtel</h3>
-            <p className="text-gray-600 font-mono">UGX {financialSummary.airtel}</p>
+          <div className="bg-white p-4 rounded-lg shadow-xs border">
+            <h3 className="text-sm font-medium text-gray-500">Airtel Money</h3>
+            <p className="text-lg font-semibold">UGX {financialSummary.airtel.toLocaleString()}</p>
           </div>
         )}
         {Object.entries(financialSummary.bankNames).map(([bankName, amount]: [string, number]) => (
-          <div key={bankName} className="bg-white p-4 rounded-lg shadow-md">
-            <h3 className="text-lg font-semibold">{bankName}</h3>
-            <p className="text-gray-600 font-mono">UGX {amount}</p>
+          <div key={bankName} className="bg-white p-4 rounded-lg shadow-xs border">
+            <h3 className="text-sm font-medium text-gray-500">{bankName}</h3>
+            <p className="text-lg font-semibold">UGX {amount.toLocaleString()}</p>
           </div>
         ))}
       </div>
 
-      {/* Make Deposit Button */}
-      <button
-        onClick={() => setIsModalOpen(true)}
-        className="bg-blue-500 text-white p-2 rounded mt-4"
-      >
-        Make Deposit
-      </button>
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Deposit Records</h2>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+        >
+          + Make Deposit
+        </button>
+      </div>
 
       {/* Deposit Records Table */}
-      <h2 className="text-2xl font-semibold mt-6 mb-4">Deposit Records</h2>
-      <table className="w-full border-collapse border mt-4">
-        <thead>
-          <tr>
-            <th className="border p-2">Amount</th>
-            <th className="border p-2">Mode</th>
-            <th className="border p-2">Service Provider</th>
-            <th className="border p-2">Deposited by</th>
-            <th className="border p-2">Date</th>
-            <th className="border p-2">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ledger.map((entry) => (
-            <tr key={entry.id}>
-              <td className="border p-2 font-mono">UGX {entry.amount_paid}</td>
-              <td className="border p-2">{entry.mode_of_payment}</td>
-              <td className="border p-2">{entry.mode_of_mobilemoney || entry.bank_name || "-"}</td>
-              <td className="border p-2">You</td>
-              <td className="border p-2">{new Date(entry.created_at).toLocaleDateString()}</td>
-              <td>
-                <button
-                  className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-700"
-                  onClick={() => deleteFinanceEntry(entry.id)}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {ledger.map((entry) => (
+                <tr key={entry.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap font-mono">UGX {entry.amount_paid.toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{entry.mode_of_payment}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {entry.mode_of_mobilemoney || entry.bank_name || "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {new Date(entry.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => deleteFinanceEntry(entry.id)}
+                      className="text-red-600 hover:text-red-900 font-medium"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Deposit Form Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg w-96">
-            <h2 className="text-xl font-semibold mb-4">Make a Deposit</h2>
-            <input 
-              type="number" 
-              placeholder="Amount" 
-              value={amountPaid} 
-              onChange={(e) => setAmountPaid(e.target.value === "" ? "" : parseFloat(e.target.value))} 
-              className="border p-2 rounded w-full mb-2" 
-            />
-            <select 
-              value={modeOfPayment} 
-              onChange={(e) => setModeOfPayment(e.target.value)} 
-              className="border p-2 rounded w-full mb-2"
-            >
-              <option value="">Select Mode</option>
-              <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
-              <option value="Mobile Money">Mobile Money</option>
-            </select>
-            {modeOfPayment === "Mobile Money" && (
-              <select 
-                value={modeOfMobileMoney} 
-                onChange={(e) => setModeOfMobileMoney(e.target.value)} 
-                className="border p-2 rounded w-full mb-2"
-              >
-                <option value="">Select Provider</option>
-                <option value="MTN">MTN</option>
-                <option value="Airtel">Airtel</option>
-              </select>
-            )}
-            {modeOfPayment === "Bank" && (
-              <input 
-                type="text" 
-                placeholder="Bank Name" 
-                value={bankName} 
-                onChange={(e) => setBankName(e.target.value)} 
-                className="border p-2 rounded w-full mb-2" 
-              />
-            )}
-            <button 
-              onClick={handleDepositSubmit} 
-              className="bg-green-500 text-white p-2 rounded w-full"
-            >
-              Submit Deposit
-            </button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Make a Deposit</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount (UGX)</label>
+                  <input 
+                    type="number" 
+                    placeholder="Enter amount" 
+                    value={amountPaid} 
+                    onChange={(e) => setAmountPaid(e.target.value === "" ? "" : parseFloat(e.target.value))} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
+                  <select 
+                    value={modeOfPayment} 
+                    onChange={(e) => setModeOfPayment(e.target.value)} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select payment mode</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Bank">Bank</option>
+                    <option value="Mobile Money">Mobile Money</option>
+                  </select>
+                </div>
+
+                {modeOfPayment === "Mobile Money" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Provider</label>
+                    <select 
+                      value={modeOfMobileMoney} 
+                      onChange={(e) => setModeOfMobileMoney(e.target.value)} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select provider</option>
+                      <option value="MTN">MTN</option>
+                      <option value="Airtel">Airtel</option>
+                    </select>
+                  </div>
+                )}
+
+                {modeOfPayment === "Bank" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="Enter bank name" 
+                      value={bankName} 
+                      onChange={(e) => setBankName(e.target.value)} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleDepositSubmit} 
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Submit Deposit
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
