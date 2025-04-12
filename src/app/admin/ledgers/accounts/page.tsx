@@ -19,6 +19,7 @@ export default function FinancialSummaryPage() {
   const [modeOfPayment, setModeOfPayment] = useState("");
   const [modeOfMobileMoney, setModeOfMobileMoney] = useState("");
   const [bankName, setBankName] = useState("");
+  const [purpose, setPurpose] = useState("");
 
   // Financial summary state
   const [financialSummary, setFinancialSummary] = useState<any>({
@@ -81,7 +82,7 @@ export default function FinancialSummaryPage() {
 
   // Handle deposit submission
   const handleDepositSubmit = async () => {
-    if (!amountPaid || !modeOfPayment) {
+    if (!amountPaid || !modeOfPayment || !purpose) {
       alert("Please fill in all required fields.");
       return;
     }
@@ -92,7 +93,8 @@ export default function FinancialSummaryPage() {
       amount_available: amount,
       mode_of_payment: modeOfPayment,
       submittedby: "Cashier",
-      amount_paid: amount
+      amount_paid: amount,
+      purpose: purpose
     };
 
     if (modeOfPayment === "Mobile Money") {
@@ -108,10 +110,12 @@ export default function FinancialSummaryPage() {
       return;
     }
 
+    // Reset form
     setAmountPaid("");
     setModeOfPayment("");
     setModeOfMobileMoney("");
     setBankName("");
+    setPurpose("");
 
     alert("Deposit successfully recorded!");
     setIsModalOpen(false);
@@ -229,6 +233,7 @@ export default function FinancialSummaryPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
@@ -240,6 +245,9 @@ export default function FinancialSummaryPage() {
                   <td className="px-6 py-4 whitespace-nowrap">{entry.mode_of_payment}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {entry.mode_of_mobilemoney || entry.bank_name || "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {entry.purpose || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {new Date(entry.created_at).toLocaleDateString()}
@@ -319,6 +327,18 @@ export default function FinancialSummaryPage() {
                     />
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Purpose/Reason</label>
+                  <input 
+                    type="text" 
+                    placeholder="Enter purpose of deposit" 
+                    value={purpose} 
+                    onChange={(e) => setPurpose(e.target.value)} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                    required
+                  />
+                </div>
               </div>
 
               <div className="mt-6 flex justify-end space-x-3">
