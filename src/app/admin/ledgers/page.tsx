@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://kxnrfzcurobahklqefjs.supabase.co';
-const supabaseKey = 'YOUR_SUPABASE_KEY'; // Replace with environment variable
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnJmemN1cm9iYWhrbHFlZmpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5NTk1MzUsImV4cCI6MjA1MzUzNTUzNX0.pHrrAPHV1ln1OHugnB93DTUY5TL9K8dYREhz1o0GkjE'; // Replace with environment variable
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function LedgerPage() {
