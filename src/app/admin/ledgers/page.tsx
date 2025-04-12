@@ -34,8 +34,7 @@ export default function LedgerPage() {
         const { data: accountsData, error: accountsError } = await supabase
           .from('finance')
           .select('amount_available')
-          .eq('submittedby', 'Cashier')
-          .eq('currency', 'UGX');
+          .eq('submittedby', 'Cashier');
 
         if (!accountsError && accountsData) {
           const total = accountsData.reduce((sum, item) => sum + (item.amount_available || 0), 0);
