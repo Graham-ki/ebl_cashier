@@ -14,7 +14,7 @@ export default function ExpensesLedgerPage() {
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [balanceForward, setBalanceForward] = useState(0);
-  const [filter, setFilter] = useState<"daily" | "monthly" | "yearly" | "all">("all"); // Filter state
+  const [filter, setFilter] = useState<"daily" | "monthly" | "yearly" | "all">("all");
   const [formData, setFormData] = useState({
     item: "",
     amount_spent: 0,
@@ -22,33 +22,46 @@ export default function ExpensesLedgerPage() {
     mode_of_payment: "",
     account: "",
   });
-  const [editExpense, setEditExpense] = useState<any>(null); // For editing expenses
-  const [modes, setModes] = useState<string[]>([]); // For storing modes of payment from finance table
-  const [subModes, setSubModes] = useState<string[]>([]); // For storing submodes/accounts based on selected mode
+  const [editExpense, setEditExpense] = useState<any>(null);
+  const [modes, setModes] = useState<string[]>([]);
+  const [subModes, setSubModes] = useState<string[]>([]);
 
-  // Fetch expenses, total income, and modes on component mount and when filter changes
+  // Fetch all necessary data when component mounts or filter changes
   useEffect(() => {
     fetchExpenses(filter);
     fetchTotalIncome();
     fetchModes();
-    fetchBalanceForward(); // Fetch balance forward from amount_available
+    fetchBalanceForward();
   }, [filter]);
 
-  // Fetch balance forward (total sum of amount_available from finance table)
+  // Fetch balance forward (total amount_available from finance table)
   const fetchBalanceForward = async () => {
     const { data, error } = await supabase
       .from("finance")
       .select("amount_available")
-      .neq("mode_of_payment", "Bank")
       .eq("submittedby", "Cashier");
 
     if (error) {
-      alert("Error fetching balance forward: " + error.message);
+      console.error("Error fetching balance forward:", error.message);
       return;
     }
 
-    const total = data.reduce((sum, entry) => sum + (entry.amount_available || 0), 0);
-    setBalanceForward(total);
+    const totalAvailable = data.reduce((sum, entry) => sum + (entry.amount_available || 0), 0);
+    
+    // Fetch total expenses to calculate balance forward
+    const { data: expensesData, error: expensesError } = await supabase
+      .from("expenses")
+      .select("amount_spent")
+      .eq("submittedby", "Cashier");
+
+    if (expensesError) {
+      console.error("Error fetching expenses for balance:", expensesError.message);
+      return;
+    }
+
+    const totalExpenses = expensesData.reduce((sum, entry) => sum + (entry.amount_spent || 0), 0);
+    
+    setBalanceForward(totalAvailable - totalExpenses);
   };
 
   // Fetch modes of payment from finance table
@@ -59,19 +72,18 @@ export default function ExpensesLedgerPage() {
       .eq("submittedby", "Cashier");
 
     if (error) {
-      alert("Error fetching modes of payment: " + error.message);
+      console.error("Error fetching modes:", error.message);
       return;
     }
 
-    // Extract unique modes of payment
     const uniqueModes = Array.from(new Set(data.map((entry) => entry.mode_of_payment)));
     setModes(uniqueModes);
   };
 
-  // Fetch submodes/accounts based on the selected mode of payment
+  // Fetch submodes/accounts based on selected mode
   const fetchSubModes = async (mode: string) => {
-    if (mode === "cash") {
-      setSubModes([]); // No submodes for cash
+    if (mode === "Cash") {
+      setSubModes([]);
       return;
     }
 
@@ -79,17 +91,16 @@ export default function ExpensesLedgerPage() {
       .from("finance")
       .select(mode === "Bank" ? "bank_name" : "mode_of_mobilemoney")
       .eq("submittedby", "Cashier")
-      .eq("mode_of_payment", mode) as { data: { bank_name?: string; mode_of_mobilemoney?: string }[], error: any };
+      .eq("mode_of_payment", mode);
 
     if (error) {
-      alert("Error fetching submodes: " + error.message);
+      console.error("Error fetching submodes:", error.message);
       return;
     }
 
-    // Extract unique submodes/accounts
     const uniqueSubModes = Array.from(
       new Set(data.map((entry) => (mode === "Bank" ? entry.bank_name : entry.mode_of_mobilemoney)))
-    ).filter((subMode): subMode is string => !!subMode); // Filter out null/undefined values
+    ).filter((subMode): subMode is string => !!subMode);
 
     setSubModes(uniqueSubModes);
   };
@@ -122,10 +133,8 @@ export default function ExpensesLedgerPage() {
         break;
     }
 
-    // Build the query
     let query = supabase.from("expenses").select("*").eq("submittedby", "Cashier");
 
-    // Apply date filter if applicable
     if (startDate && endDate) {
       query = query.gte("date", startDate.toISOString()).lte("date", endDate.toISOString());
     }
@@ -133,7 +142,7 @@ export default function ExpensesLedgerPage() {
     const { data, error } = await query;
 
     if (error) {
-      alert("Error fetching expenses: " + error.message);
+      console.error("Error fetching expenses:", error.message);
       setLoading(false);
       return;
     }
@@ -144,21 +153,21 @@ export default function ExpensesLedgerPage() {
   };
 
   // Fetch total income from finance table
- const fetchTotalIncome = async () => {
-  const { data, error } = await supabase
-    .from("finance")
-    .select("amount_paid")
-    .neq("mode_of_payment", "Bank")
-    .eq("submittedby", "Cashier"); // Exclude rows where mode_of_payment is 'Bank'
+  const fetchTotalIncome = async () => {
+    const { data, error } = await supabase
+      .from("finance")
+      .select("amount_paid")
+      .eq("submittedby", "Cashier");
 
-  if (error) {
-    alert("Error fetching total income: " + error.message);
-    return;
-  }
+    if (error) {
+      console.error("Error fetching total income:", error.message);
+      return;
+    }
 
-  const total = data.reduce((sum, entry) => sum + (entry.amount_paid || 0), 0);
-  setTotalIncome(total);
-};
+    const total = data.reduce((sum, entry) => sum + (entry.amount_paid || 0), 0);
+    setTotalIncome(total);
+  };
+
   // Calculate total expenses
   const calculateTotalExpenses = (data: any[]) => {
     const total = data.reduce((sum, entry) => sum + (entry.amount_spent || 0), 0);
@@ -171,34 +180,30 @@ export default function ExpensesLedgerPage() {
     setFormData({ ...formData, [name]: value });
 
     if (name === "mode_of_payment") {
-      fetchSubModes(value); // Fetch submodes when mode changes
-      setFormData((prev) => ({ ...prev, account: "" })); // Reset account when mode changes
+      fetchSubModes(value);
+      setFormData((prev) => ({ ...prev, account: "" }));
     }
   };
 
   // Submit expense (add or update)
   const submitExpense = async () => {
     if (!formData.item || !formData.amount_spent || !formData.department || !formData.mode_of_payment) {
-      alert("Please fill in all fields.");
+      alert("Please fill in all required fields.");
       return;
     }
 
-    // Prepare the expense data to be inserted/updated
     const expenseData = {
       item: formData.item,
       amount_spent: formData.amount_spent,
       department: formData.department,
       mode_of_payment: formData.mode_of_payment,
-      account: formData.account, // Include the account (bank name or mobile money mode)
-      submittedby: "Cashier", // Hardcoded for now
+      account: formData.account,
+      submittedby: "Cashier",
     };
 
     // Submit the expense
-    const { data, error } = editExpense
-      ? await supabase
-          .from("expenses")
-          .update(expenseData)
-          .eq("id", editExpense.id)
+    const { error } = editExpense
+      ? await supabase.from("expenses").update(expenseData).eq("id", editExpense.id)
       : await supabase.from("expenses").insert([expenseData]);
 
     if (error) {
@@ -206,46 +211,15 @@ export default function ExpensesLedgerPage() {
       return;
     }
 
-    alert("Expense successfully submitted!");
-
-    // Deduct the amount from the total amount_available for the selected mode
-    const { data: financeData, error: financeError } = await supabase
-      .from("finance")
-      .select("amount_available")
-      .eq("mode_of_payment", formData.mode_of_payment)
-      .eq("submittedby", "Cashier");
-
-    if (financeError) {
-      alert("Error fetching finance data: " + financeError.message);
-      return;
-    }
-
-    if (financeData.length === 0) {
-      alert("No finance data found for the selected mode.");
-      return;
-    }
-
-    // Calculate the total amount_available for the selected mode
-    const totalAmountAvailable = financeData.reduce((sum, entry) => sum + (entry.amount_available || 0), 0);
-    const updatedAmountAvailable = totalAmountAvailable - formData.amount_spent;
-
-    // Update all entries for the selected mode with the new total amount_available
-    const { error: updateError } = await supabase
-      .from("finance")
-      .update({ amount_available: updatedAmountAvailable })
-      .eq("mode_of_payment", formData.mode_of_payment)
-      .eq("submittedby", "Cashier");
-
-    if (updateError) {
-      alert("Error updating finance data: " + updateError.message);
-      return;
-    }
-
-    // Refresh data
+    // Refresh all data to get updated calculations
     fetchExpenses(filter);
-    fetchBalanceForward(); // Update balance forward
+    fetchBalanceForward();
+    
+    // Reset form
     setFormData({ item: "", amount_spent: 0, department: "", mode_of_payment: "", account: "" });
     setEditExpense(null);
+    
+    alert("Expense successfully submitted!");
   };
 
   // Handle edit action
@@ -258,7 +232,7 @@ export default function ExpensesLedgerPage() {
       mode_of_payment: expense.mode_of_payment,
       account: expense.account,
     });
-    fetchSubModes(expense.mode_of_payment); // Fetch submodes for the edited expense's mode
+    fetchSubModes(expense.mode_of_payment);
   };
 
   // Handle delete action
@@ -271,8 +245,10 @@ export default function ExpensesLedgerPage() {
         return;
       }
 
-      alert("Expense successfully deleted!");
+      // Refresh data after deletion
       fetchExpenses(filter);
+      fetchBalanceForward();
+      alert("Expense successfully deleted!");
     }
   };
 
@@ -288,15 +264,14 @@ export default function ExpensesLedgerPage() {
     }));
 
     const csvHeaders = Object.keys(csvData[0]).join(",") + "\n";
-    const csvRows = csvData
-      .map((row) => Object.values(row).join(","))
-      .join("\n");
+    const csvRows = csvData.map((row) => Object.values(row).join(",")).join("\n");
 
     const csvBlob = new Blob([csvHeaders + csvRows], { type: "text/csv;charset=utf-8" });
     saveAs(csvBlob, "expenses.csv");
   };
 
-  return (<div className="container mx-auto p-4">
+  return (
+    <div className="container mx-auto p-4">
       {/* Header */}
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold mb-2">Expenses Ledger</h1>
