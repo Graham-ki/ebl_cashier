@@ -223,7 +223,7 @@ export default function ExpensesLedgerPage() {
       {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-green-500">
-          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Total Available</h2>
+          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Total Income</h2>
           <p className="text-2xl font-bold">UGX {totalIncome.toLocaleString()}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-red-500">
