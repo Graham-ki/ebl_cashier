@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { saveAs } from "file-saver"; // For CSV export
+import { saveAs } from "file-saver";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,86 +23,48 @@ export default function ExpensesLedgerPage() {
     account: "",
   });
   const [editExpense, setEditExpense] = useState<any>(null);
-  const [modes, setModes] = useState<string[]>([]);
-  const [subModes, setSubModes] = useState<string[]>([]);
 
-  // Fetch all necessary data when component mounts or filter changes
+  // Fetch all necessary data
   useEffect(() => {
     fetchExpenses(filter);
-    fetchTotalIncome();
-    fetchModes();
-    fetchBalanceForward();
+    fetchFinancialData();
   }, [filter]);
 
-  // Fetch balance forward (total amount_available from finance table)
-  const fetchBalanceForward = async () => {
-    const { data, error } = await supabase
-      .from("finance")
-      .select("amount_available")
-      .eq("submittedby", "Cashier");
+  // Fetch financial data (income and expenses totals)
+  const fetchFinancialData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch total available amount from finance table
+      const { data: financeData, error: financeError } = await supabase
+        .from("finance")
+        .select("amount_available")
+        .eq("submittedby", "Cashier");
 
-    if (error) {
-      console.error("Error fetching balance forward:", error.message);
-      return;
+      if (financeError) throw financeError;
+
+      const totalAvailable = financeData.reduce((sum, entry) => sum + (entry.amount_available || 0), 0);
+      setTotalIncome(totalAvailable);
+
+      // Fetch total expenses from expenses table
+      const { data: expensesData, error: expensesError } = await supabase
+        .from("expenses")
+        .select("amount_spent")
+        .eq("submittedby", "Cashier");
+
+      if (expensesError) throw expensesError;
+
+      const totalExpended = expensesData.reduce((sum, entry) => sum + (entry.amount_spent || 0), 0);
+      setTotalExpenses(totalExpended);
+
+      // Calculate balance forward
+      setBalanceForward(totalAvailable - totalExpended);
+    } catch (error) {
+      console.error("Error fetching financial data:", error);
+      alert("Error fetching financial data. Please check console for details.");
+    } finally {
+      setLoading(false);
     }
-
-    const totalAvailable = data.reduce((sum, entry) => sum + (entry.amount_available || 0), 0);
-    
-    // Fetch total expenses to calculate balance forward
-    const { data: expensesData, error: expensesError } = await supabase
-      .from("expenses")
-      .select("amount_spent")
-      .eq("submittedby", "Cashier");
-
-    if (expensesError) {
-      console.error("Error fetching expenses for balance:", expensesError.message);
-      return;
-    }
-
-    const totalExpenses = expensesData.reduce((sum, entry) => sum + (entry.amount_spent || 0), 0);
-    
-    setBalanceForward(totalAvailable - totalExpenses);
-  };
-
-  // Fetch modes of payment from finance table
-  const fetchModes = async () => {
-    const { data, error } = await supabase
-      .from("finance")
-      .select("mode_of_payment")
-      .eq("submittedby", "Cashier");
-
-    if (error) {
-      console.error("Error fetching modes:", error.message);
-      return;
-    }
-
-    const uniqueModes = Array.from(new Set(data.map((entry) => entry.mode_of_payment)));
-    setModes(uniqueModes);
-  };
-
-  // Fetch submodes/accounts based on selected mode
-  const fetchSubModes = async (mode: string) => {
-    if (mode === "Cash") {
-      setSubModes([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("finance")
-      .select(mode === "Bank" ? "bank_name" : "mode_of_mobilemoney")
-      .eq("submittedby", "Cashier")
-      .eq("mode_of_payment", mode);
-
-    if (error) {
-      console.error("Error fetching submodes:", error.message);
-      return;
-    }
-
-    const uniqueSubModes = Array.from(
-      new Set(data.map((entry) => (mode === "Bank" ? entry.bank_name : entry.mode_of_mobilemoney)))
-    ).filter((subMode): subMode is string => !!subMode);
-
-    setSubModes(uniqueSubModes);
   };
 
   // Fetch expenses based on filter
@@ -133,93 +95,71 @@ export default function ExpensesLedgerPage() {
         break;
     }
 
-    let query = supabase.from("expenses").select("*").eq("submittedby", "Cashier");
+    try {
+      let query = supabase.from("expenses").select("*").eq("submittedby", "Cashier");
 
-    if (startDate && endDate) {
-      query = query.gte("date", startDate.toISOString()).lte("date", endDate.toISOString());
-    }
+      if (startDate && endDate) {
+        query = query.gte("date", startDate.toISOString()).lte("date", endDate.toISOString());
+      }
 
-    const { data, error } = await query;
+      const { data, error } = await query;
+      if (error) throw error;
 
-    if (error) {
-      console.error("Error fetching expenses:", error.message);
+      setExpenses(data || []);
+    } catch (error) {
+      console.error("Error fetching expenses:", error);
+      alert("Error fetching expenses. Please check console for details.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setExpenses(data || []);
-    calculateTotalExpenses(data || []);
-    setLoading(false);
-  };
-
-  // Fetch total income from finance table
-  const fetchTotalIncome = async () => {
-    const { data, error } = await supabase
-      .from("finance")
-      .select("amount_paid")
-      .eq("submittedby", "Cashier");
-
-    if (error) {
-      console.error("Error fetching total income:", error.message);
-      return;
-    }
-
-    const total = data.reduce((sum, entry) => sum + (entry.amount_paid || 0), 0);
-    setTotalIncome(total);
-  };
-
-  // Calculate total expenses
-  const calculateTotalExpenses = (data: any[]) => {
-    const total = data.reduce((sum, entry) => sum + (entry.amount_spent || 0), 0);
-    setTotalExpenses(total);
   };
 
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-
-    if (name === "mode_of_payment") {
-      fetchSubModes(value);
-      setFormData((prev) => ({ ...prev, account: "" }));
-    }
   };
 
   // Submit expense (add or update)
   const submitExpense = async () => {
-    if (!formData.item || !formData.amount_spent || !formData.department || !formData.mode_of_payment) {
+    if (!formData.item || !formData.amount_spent || !formData.department) {
       alert("Please fill in all required fields.");
       return;
     }
 
-    const expenseData = {
-      item: formData.item,
-      amount_spent: formData.amount_spent,
-      department: formData.department,
-      mode_of_payment: formData.mode_of_payment,
-      account: formData.account,
-      submittedby: "Cashier",
-    };
+    try {
+      setLoading(true);
+      
+      const expenseData = {
+        item: formData.item,
+        amount_spent: formData.amount_spent,
+        department: formData.department,
+        mode_of_payment: formData.mode_of_payment,
+        account: formData.account,
+        submittedby: "Cashier",
+      };
 
-    // Submit the expense
-    const { error } = editExpense
-      ? await supabase.from("expenses").update(expenseData).eq("id", editExpense.id)
-      : await supabase.from("expenses").insert([expenseData]);
+      // Submit the expense
+      const { error } = editExpense
+        ? await supabase.from("expenses").update(expenseData).eq("id", editExpense.id)
+        : await supabase.from("expenses").insert([expenseData]);
 
-    if (error) {
-      alert("Error submitting expense: " + error.message);
-      return;
+      if (error) throw error;
+
+      // Refresh all data
+      await Promise.all([fetchExpenses(filter), fetchFinancialData()]);
+
+      // Reset form
+      setFormData({ item: "", amount_spent: 0, department: "", mode_of_payment: "", account: "" });
+      setEditExpense(null);
+      
+      alert("Expense successfully submitted!");
+    } catch (error) {
+      console.error("Error submitting expense:", error);
+      alert("Error submitting expense. Please check console for details.");
+    } finally {
+      setLoading(false);
     }
-
-    // Refresh all data to get updated calculations
-    fetchExpenses(filter);
-    fetchBalanceForward();
-    
-    // Reset form
-    setFormData({ item: "", amount_spent: 0, department: "", mode_of_payment: "", account: "" });
-    setEditExpense(null);
-    
-    alert("Expense successfully submitted!");
   };
 
   // Handle edit action
@@ -232,23 +172,26 @@ export default function ExpensesLedgerPage() {
       mode_of_payment: expense.mode_of_payment,
       account: expense.account,
     });
-    fetchSubModes(expense.mode_of_payment);
   };
 
   // Handle delete action
   const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this expense?")) {
+    if (!window.confirm("Are you sure you want to delete this expense?")) return;
+
+    try {
+      setLoading(true);
       const { error } = await supabase.from("expenses").delete().eq("id", id);
+      if (error) throw error;
 
-      if (error) {
-        alert("Error deleting expense: " + error.message);
-        return;
-      }
-
-      // Refresh data after deletion
-      fetchExpenses(filter);
-      fetchBalanceForward();
+      // Refresh all data
+      await Promise.all([fetchExpenses(filter), fetchFinancialData()]);
+      
       alert("Expense successfully deleted!");
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+      alert("Error deleting expense. Please check console for details.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -265,7 +208,6 @@ export default function ExpensesLedgerPage() {
 
     const csvHeaders = Object.keys(csvData[0]).join(",") + "\n";
     const csvRows = csvData.map((row) => Object.values(row).join(",")).join("\n");
-
     const csvBlob = new Blob([csvHeaders + csvRows], { type: "text/csv;charset=utf-8" });
     saveAs(csvBlob, "expenses.csv");
   };
@@ -281,7 +223,7 @@ export default function ExpensesLedgerPage() {
       {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-green-500">
-          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Total Income</h2>
+          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Total Available</h2>
           <p className="text-2xl font-bold">UGX {totalIncome.toLocaleString()}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-red-500">
@@ -314,6 +256,7 @@ export default function ExpensesLedgerPage() {
         <button
           onClick={exportToCSV}
           className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-full text-sm font-medium transition-colors"
+          disabled={loading || expenses.length === 0}
         >
           <span>Download CSV</span>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -327,9 +270,9 @@ export default function ExpensesLedgerPage() {
         <h2 className="text-xl font-semibold mb-4">
           {editExpense ? "Edit Expense" : "Add New Expense"}
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item *</label>
             <input
               type="text"
               name="item"
@@ -337,21 +280,23 @@ export default function ExpensesLedgerPage() {
               value={formData.item}
               onChange={handleInputChange}
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              disabled={loading}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (UGX)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (UGX) *</label>
             <input
               type="number"
               name="amount_spent"
               placeholder="Amount"
-              value={formData.amount_spent}
+              value={formData.amount_spent || ""}
               onChange={handleInputChange}
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              disabled={loading}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department *</label>
             <input
               type="text"
               name="department"
@@ -359,60 +304,82 @@ export default function ExpensesLedgerPage() {
               value={formData.department}
               onChange={handleInputChange}
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              disabled={loading}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
             <select
               name="mode_of_payment"
               value={formData.mode_of_payment}
               onChange={handleInputChange}
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              disabled={loading}
             >
-              <option value="">Select Account</option>
-              {modes.map((mode, index) => (
-                <option key={index} value={mode}>
-                  {mode}
-                </option>
-              ))}
+              <option value="">Select Method</option>
+              <option value="Cash">Cash</option>
+              <option value="Mobile Money">Mobile Money</option>
+              <option value="Bank Transfer">Bank Transfer</option>
             </select>
           </div>
-          {formData.mode_of_payment !== "Cash" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Provider</label>
-              <select
+          {formData.mode_of_payment && formData.mode_of_payment !== "Cash" && (
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {formData.mode_of_payment === "Mobile Money" ? "Mobile Money Provider" : "Bank Name"}
+              </label>
+              <input
+                type="text"
                 name="account"
+                placeholder={formData.mode_of_payment === "Mobile Money" ? "e.g. MTN, Airtel" : "Bank name"}
                 value={formData.account}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
-                disabled={!formData.mode_of_payment}
-              >
-                <option value="">Select Provider</option>
-                {subModes.map((subMode, index) => (
-                  <option key={index} value={subMode}>
-                    {subMode}
-                  </option>
-                ))}
-              </select>
+                disabled={loading}
+              />
             </div>
           )}
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end gap-2">
+          {editExpense && (
+            <button
+              onClick={() => {
+                setEditExpense(null);
+                setFormData({ item: "", amount_spent: 0, department: "", mode_of_payment: "", account: "" });
+              }}
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md font-medium transition-colors"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+          )}
           <button
             onClick={submitExpense}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+            disabled={loading}
           >
-            {editExpense ? "Update Expense" : "Add Expense"}
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {editExpense ? "Updating..." : "Submitting..."}
+              </span>
+            ) : editExpense ? "Update Expense" : "Add Expense"}
           </button>
         </div>
       </div>
 
       {/* Expenses Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        {loading ? (
+        {loading && !expenses.length ? (
           <div className="p-8 text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
             <p className="mt-2 text-gray-600 dark:text-gray-400">Loading expenses...</p>
+          </div>
+        ) : expenses.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-gray-600 dark:text-gray-400">No expenses found</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -422,8 +389,8 @@ export default function ExpensesLedgerPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Item</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Account</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Provider</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Method</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Details</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -434,8 +401,8 @@ export default function ExpensesLedgerPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">{expense.item}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">UGX {expense.amount_spent.toLocaleString()}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.department}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.mode_of_payment}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.account}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.mode_of_payment || "N/A"}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.account || "N/A"}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       {new Date(expense.date).toLocaleDateString()}
                     </td>
@@ -443,12 +410,14 @@ export default function ExpensesLedgerPage() {
                       <button
                         onClick={() => handleEdit(expense)}
                         className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+                        disabled={loading}
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(expense.id)}
                         className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                        disabled={loading}
                       >
                         Delete
                       </button>
