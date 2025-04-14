@@ -6,40 +6,46 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://kxnrfzcurobahklqefjs.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnJmemN1cm9iYWhrbHFlZmpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5NTk1MzUsImV4cCI6MjA1MzUzNTUzNX0.pHrrAPHV1ln1OHugnB93DTUY5TL9K8dYREhz1o0GkjE'; // Replace with environment variable
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnJmemN1cm9iYWhrbHFlZmpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5NTk1MzUsImV4cCI6MjA1MzUzNTUzNX0.pHrrAPHV1ln1OHugnB93DTUY5TL9K8dYREhz1o0GkjE';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function LedgerPage() {
   const router = useRouter();
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [accountBalances, setAccountBalances] = useState(0);
+  const [balanceForward, setBalanceForward] = useState(0);
   const [lastUpdated, setLastUpdated] = useState('Loading...');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch total expenses
+        setLoading(true);
+        
+        // Fetch all expenses submitted by Cashier
         const { data: expensesData, error: expensesError } = await supabase
           .from('expenses')
-          .select('amount')
+          .select('amount_spent')
           .eq('submittedby', 'Cashier');
 
-        if (!expensesError && expensesData) {
-          const total = expensesData.reduce((sum, item) => sum + (item.amount || 0), 0);
-          setTotalExpenses(total);
-        }
+        if (expensesError) throw expensesError;
 
-        // Fetch account balances
-        const { data: accountsData, error: accountsError } = await supabase
+        const totalExpenses = expensesData?.reduce((sum, item) => sum + (item.amount_spent || 0), 0) || 0;
+        setTotalExpenses(totalExpenses);
+
+        // Fetch all available amounts from finance table submitted by Cashier
+        const { data: financeData, error: financeError } = await supabase
           .from('finance')
           .select('amount_available')
           .eq('submittedby', 'Cashier');
 
-        if (!accountsError && accountsData) {
-          const total = accountsData.reduce((sum, item) => sum + (item.amount_available || 0), 0);
-          setAccountBalances(total);
-        }
+        if (financeError) throw financeError;
+
+        const totalAvailable = financeData?.reduce((sum, item) => sum + (item.amount_available || 0), 0) || 0;
+        setAccountBalances(totalAvailable);
+        
+        // Calculate balance forward
+        setBalanceForward(totalAvailable - totalExpenses);
 
         // Fetch last updated date
         const { data: dateData, error: dateError } = await supabase
@@ -49,7 +55,7 @@ export default function LedgerPage() {
           .order('created_at', { ascending: false })
           .limit(1);
 
-        if (!dateError && dateData && dateData[0]?.created_at) {
+        if (!dateError && dateData?.[0]?.created_at) {
           const date = new Date(dateData[0].created_at);
           setLastUpdated(date.toLocaleDateString());
         } else {
@@ -57,7 +63,7 @@ export default function LedgerPage() {
         }
 
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching ledger data:', error);
       } finally {
         setLoading(false);
       }
@@ -156,15 +162,20 @@ export default function LedgerPage() {
               <p className="text-xl font-bold">{totalExpenses.toLocaleString()} UGX</p>
             </div>
             <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-xs border">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Account Balances </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Account Balances</p>
               <p className="text-xl font-bold">{accountBalances.toLocaleString()} UGX</p>
             </div>
             <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-xs border">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated</p>
-              <p className="text-xl font-bold">{lastUpdated}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Balance Forward</p>
+              <p className="text-xl font-bold">{balanceForward.toLocaleString()} UGX</p>
             </div>
           </div>
         )}
+
+        <div className="mt-4 p-3 bg-white dark:bg-gray-700 rounded-lg shadow-xs border">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Last Updated</p>
+          <p className="text-xl font-bold">{lastUpdated}</p>
+        </div>
       </div>
     </div>
   );
