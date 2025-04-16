@@ -29,6 +29,11 @@ export default function FinancialSummaryPage() {
     mtn: 0,
     airtel: 0,
     bankNames: {} as { [key: string]: number },
+    balanceForward: {
+      cash: 0,
+      bank: 0,
+      mobileMoney: 0
+    }
   });
 
   // Fetch all ledger entries
@@ -43,12 +48,12 @@ export default function FinancialSummaryPage() {
     }
 
     setLedger(data || []);
-    calculateFinancialSummary(data || []);
+    await calculateFinancialSummary(data || []);
     setLoading(false);
   };
 
   // Calculate financial summary
-  const calculateFinancialSummary = (ledger: any[]) => {
+  const calculateFinancialSummary = async (ledger: any[]) => {
     const summary = {
       cash: 0,
       bank: 0,
@@ -56,8 +61,14 @@ export default function FinancialSummaryPage() {
       mtn: 0,
       airtel: 0,
       bankNames: {} as { [key: string]: number },
+      balanceForward: {
+        cash: 0,
+        bank: 0,
+        mobileMoney: 0
+      }
     };
 
+    // Calculate total deposits for each payment method
     ledger.forEach((entry) => {
       if (entry.mode_of_payment === "Cash") {
         summary.cash += entry.amount_paid;
@@ -76,6 +87,37 @@ export default function FinancialSummaryPage() {
         }
       }
     });
+
+    // Fetch and calculate expenses for each payment method
+    const { data: expenses, error } = await supabase
+      .from("expenses")
+      .select("amount_spent, mode_of_payment")
+      .eq("submittedby", "Cashier");
+
+    if (!error && expenses) {
+      const expenseSummary = {
+        cash: 0,
+        bank: 0,
+        mobileMoney: 0
+      };
+
+      expenses.forEach((expense) => {
+        if (expense.amount_spent) {
+          if (expense.mode_of_payment === "Cash") {
+            expenseSummary.cash += expense.amount_spent;
+          } else if (expense.mode_of_payment === "Bank") {
+            expenseSummary.bank += expense.amount_spent;
+          } else if (expense.mode_of_payment === "Mobile Money") {
+            expenseSummary.mobileMoney += expense.amount_spent;
+          }
+        }
+      });
+
+      // Calculate balance forward (deposits - expenses)
+      summary.balanceForward.cash = summary.cash - expenseSummary.cash;
+      summary.balanceForward.bank = summary.bank - expenseSummary.bank;
+      summary.balanceForward.mobileMoney = summary.mobileMoney - expenseSummary.mobileMoney;
+    }
 
     setFinancialSummary(summary);
   };
@@ -143,6 +185,14 @@ export default function FinancialSummaryPage() {
     }
   };
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'UGX',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
   return (
     <div className="container mx-auto p-4 md:p-6">
       <div className="flex flex-col items-center mb-8">
@@ -159,7 +209,10 @@ export default function FinancialSummaryPage() {
             <div>
               <h3 className="text-lg font-medium text-gray-500">Cash</h3>
               <p className="text-2xl font-bold text-blue-600">
-                UGX {financialSummary.cash.toLocaleString()}
+                {formatCurrency(financialSummary.cash)}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Balance forward: <span className="font-medium">{formatCurrency(financialSummary.balanceForward.cash)}</span>
               </p>
             </div>
             <div className="p-3 bg-blue-50 rounded-lg">💰</div>
@@ -171,7 +224,10 @@ export default function FinancialSummaryPage() {
             <div>
               <h3 className="text-lg font-medium text-gray-500">Bank</h3>
               <p className="text-2xl font-bold text-green-600">
-                UGX {financialSummary.bank.toLocaleString()}
+                {formatCurrency(financialSummary.bank)}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Balance forward: <span className="font-medium">{formatCurrency(financialSummary.balanceForward.bank)}</span>
               </p>
             </div>
             <div className="p-3 bg-green-50 rounded-lg">🏦</div>
@@ -183,7 +239,10 @@ export default function FinancialSummaryPage() {
             <div>
               <h3 className="text-lg font-medium text-gray-500">Mobile Money</h3>
               <p className="text-2xl font-bold text-purple-600">
-                UGX {financialSummary.mobileMoney.toLocaleString()}
+                {formatCurrency(financialSummary.mobileMoney)}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Balance forward: <span className="font-medium">{formatCurrency(financialSummary.balanceForward.mobileMoney)}</span>
               </p>
             </div>
             <div className="p-3 bg-purple-50 rounded-lg">📱</div>
@@ -196,19 +255,19 @@ export default function FinancialSummaryPage() {
         {financialSummary.mtn > 0 && (
           <div className="bg-white p-4 rounded-lg shadow-xs border">
             <h3 className="text-sm font-medium text-gray-500">MTN Mobile Money</h3>
-            <p className="text-lg font-semibold">UGX {financialSummary.mtn.toLocaleString()}</p>
+            <p className="text-lg font-semibold">{formatCurrency(financialSummary.mtn)}</p>
           </div>
         )}
         {financialSummary.airtel > 0 && (
           <div className="bg-white p-4 rounded-lg shadow-xs border">
             <h3 className="text-sm font-medium text-gray-500">Airtel Money</h3>
-            <p className="text-lg font-semibold">UGX {financialSummary.airtel.toLocaleString()}</p>
+            <p className="text-lg font-semibold">{formatCurrency(financialSummary.airtel)}</p>
           </div>
         )}
         {Object.entries(financialSummary.bankNames).map(([bankName, amount]: [string, number]) => (
           <div key={bankName} className="bg-white p-4 rounded-lg shadow-xs border">
             <h3 className="text-sm font-medium text-gray-500">{bankName}</h3>
-            <p className="text-lg font-semibold">UGX {amount.toLocaleString()}</p>
+            <p className="text-lg font-semibold">{formatCurrency(amount)}</p>
           </div>
         ))}
       </div>
@@ -241,7 +300,7 @@ export default function FinancialSummaryPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {ledger.map((entry) => (
                 <tr key={entry.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap font-mono">UGX {entry.amount_paid.toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap font-mono">{formatCurrency(entry.amount_paid)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{entry.mode_of_payment}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {entry.mode_of_mobilemoney || entry.bank_name || "-"}
