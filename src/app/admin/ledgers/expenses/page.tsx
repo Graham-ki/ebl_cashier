@@ -308,7 +308,7 @@ export default function ExpensesLedgerPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source Account</label>
             <select
               name="mode_of_payment"
               value={formData.mode_of_payment}
@@ -316,7 +316,7 @@ export default function ExpensesLedgerPage() {
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               disabled={loading}
             >
-              <option value="">Select Method</option>
+              <option value="">Select</option>
               <option value="Cash">Cash</option>
               <option value="Mobile Money">Mobile Money</option>
               <option value="Bank Transfer">Bank Transfer</option>
@@ -389,7 +389,7 @@ export default function ExpensesLedgerPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Item</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Method</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Source Account</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Details</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
