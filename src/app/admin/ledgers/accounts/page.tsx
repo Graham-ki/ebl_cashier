@@ -39,7 +39,7 @@ export default function FinancialSummaryPage() {
   // Fetch all ledger entries
   const fetchAllLedgerEntries = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("finance").select("*").eq("submittedby", "Cashier");
+    const { data, error } = await supabase.from("finance").select("*").eq("submittedby", "Cashier").order('id',{ascending:false});
 
     if (error) {
       alert("Error fetching ledger entries: " + error.message);
@@ -92,7 +92,8 @@ export default function FinancialSummaryPage() {
     const { data: expenses, error } = await supabase
       .from("expenses")
       .select("amount_spent, mode_of_payment")
-      .eq("submittedby", "Cashier");
+      .eq("submittedby", "Cashier")
+      .order('date',{ascending:false});
 
     if (!error && expenses) {
       const expenseSummary = {
