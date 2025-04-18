@@ -96,7 +96,7 @@ export default function ExpensesLedgerPage() {
     }
 
     try {
-      let query = supabase.from("expenses").select("*").eq("submittedby", "Cashier");
+      let query = supabase.from("expenses").select("*").eq("submittedby", "Cashier").order('date',{ascending:false});
 
       if (startDate && endDate) {
         query = query.gte("date", startDate.toISOString()).lte("date", endDate.toISOString());
