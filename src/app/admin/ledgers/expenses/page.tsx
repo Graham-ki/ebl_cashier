@@ -1,12 +1,23 @@
 "use client";
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { saveAs } from "file-saver";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+// Predefined expense categories
+const EXPENSE_CATEGORIES = [
+  "Labour",
+  "Salary",
+  "Wage",
+  "Repairs",
+  "Stock",
+  "Allowance",
+  "Utility/Welfare",
+  "Other"
+];
 
 export default function ExpensesLedgerPage() {
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -17,6 +28,7 @@ export default function ExpensesLedgerPage() {
   const [filter, setFilter] = useState<"daily" | "monthly" | "yearly" | "all">("all");
   const [formData, setFormData] = useState({
     item: "",
+    customItem: "",
     amount_spent: 0,
     department: "",
     mode_of_payment: "",
@@ -118,11 +130,19 @@ export default function ExpensesLedgerPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    
+    // Reset customItem when selecting a non-"Other" category
+    if (name === "item" && value !== "Other") {
+      setFormData(prev => ({ ...prev, customItem: "" }));
+    }
   };
 
   // Submit expense (add or update)
   const submitExpense = async () => {
-    if (!formData.item || !formData.amount_spent || !formData.department) {
+    // Determine the final item name (use customItem if "Other" was selected)
+    const finalItem = formData.item === "Other" ? formData.customItem : formData.item;
+    
+    if (!finalItem || !formData.amount_spent || !formData.department) {
       alert("Please fill in all required fields.");
       return;
     }
@@ -131,7 +151,7 @@ export default function ExpensesLedgerPage() {
       setLoading(true);
       
       const expenseData = {
-        item: formData.item,
+        item: finalItem,
         amount_spent: formData.amount_spent,
         department: formData.department,
         mode_of_payment: formData.mode_of_payment,
@@ -150,7 +170,14 @@ export default function ExpensesLedgerPage() {
       await Promise.all([fetchExpenses(filter), fetchFinancialData()]);
 
       // Reset form
-      setFormData({ item: "", amount_spent: 0, department: "", mode_of_payment: "", account: "" });
+      setFormData({ 
+        item: "", 
+        customItem: "", 
+        amount_spent: 0, 
+        department: "", 
+        mode_of_payment: "", 
+        account: "" 
+      });
       setEditExpense(null);
       
       alert("Expense successfully submitted!");
@@ -165,8 +192,11 @@ export default function ExpensesLedgerPage() {
   // Handle edit action
   const handleEdit = (expense: any) => {
     setEditExpense(expense);
+    // Check if the expense item is in our predefined categories
+    const isPredefinedCategory = EXPENSE_CATEGORIES.includes(expense.item);
     setFormData({
-      item: expense.item,
+      item: isPredefinedCategory ? expense.item : "Other",
+      customItem: isPredefinedCategory ? "" : expense.item,
       amount_spent: expense.amount_spent,
       department: expense.department,
       mode_of_payment: expense.mode_of_payment,
@@ -209,7 +239,14 @@ export default function ExpensesLedgerPage() {
     const csvHeaders = Object.keys(csvData[0]).join(",") + "\n";
     const csvRows = csvData.map((row) => Object.values(row).join(",")).join("\n");
     const csvBlob = new Blob([csvHeaders + csvRows], { type: "text/csv;charset=utf-8" });
-    saveAs(csvBlob, "expenses.csv");
+    
+    // Create download link and trigger click
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(csvBlob);
+    link.download = "expenses.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -273,15 +310,31 @@ export default function ExpensesLedgerPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item *</label>
-            <input
-              type="text"
+            <select
               name="item"
-              placeholder="Item name"
               value={formData.item}
               onChange={handleInputChange}
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               disabled={loading}
-            />
+            >
+              <option value="">Select an item</option>
+              {EXPENSE_CATEGORIES.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+            {formData.item === "Other" && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  name="customItem"
+                  placeholder="Specify item name"
+                  value={formData.customItem}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  disabled={loading}
+                />
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (UGX) *</label>
@@ -300,7 +353,7 @@ export default function ExpensesLedgerPage() {
             <input
               type="text"
               name="department"
-              placeholder="Department"
+              placeholder="Department/person"
               value={formData.department}
               onChange={handleInputChange}
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
@@ -344,7 +397,14 @@ export default function ExpensesLedgerPage() {
             <button
               onClick={() => {
                 setEditExpense(null);
-                setFormData({ item: "", amount_spent: 0, department: "", mode_of_payment: "", account: "" });
+                setFormData({ 
+                  item: "", 
+                  customItem: "", 
+                  amount_spent: 0, 
+                  department: "", 
+                  mode_of_payment: "", 
+                  account: "" 
+                });
               }}
               className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md font-medium transition-colors"
               disabled={loading}
