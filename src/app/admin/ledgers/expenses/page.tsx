@@ -372,7 +372,6 @@ export default function ExpensesLedgerPage() {
               <option value="">Select</option>
               <option value="Cash">Cash</option>
               <option value="Mobile Money">Mobile Money</option>
-              <option value="Bank Transfer">Bank Transfer</option>
             </select>
           </div>
           {formData.mode_of_payment && formData.mode_of_payment !== "Cash" && (
