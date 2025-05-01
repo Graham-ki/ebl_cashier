@@ -46,6 +46,7 @@ export default function ExpensesLedgerPage() {
   });
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [existingItems, setExistingItems] = useState<string[]>([]);
+  const [showNotice, setShowNotice] = useState(true);
 
   // Fetch all necessary data
   useEffect(() => {
@@ -335,6 +336,23 @@ export default function ExpensesLedgerPage() {
         <h2 className="text-xl font-semibold mb-4">
           {editExpense ? "Edit Expense" : "Add New Expense"}
         </h2>
+        
+        {/* Dismissible notice */}
+        {showNotice && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md relative">
+            <p className="text-blue-800 text-sm">Please endeavor to select from the existing items list, to enable organized data</p>
+            <button 
+              onClick={() => setShowNotice(false)}
+              className="absolute top-1 right-1 text-blue-500 hover:text-blue-700"
+              aria-label="Dismiss notice"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Item *</label>
@@ -347,9 +365,18 @@ export default function ExpensesLedgerPage() {
               required
             >
               <option value="">Select an item</option>
-              {EXPENSE_CATEGORIES.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
+              {/* Existing items from database */}
+              <optgroup label="Existing Items">
+                {existingItems.map(item => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </optgroup>
+              {/* Predefined categories */}
+              <optgroup label="Categories">
+                {EXPENSE_CATEGORIES.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </optgroup>
             </select>
             {formData.item === "Other" && (
               <div className="mt-2">
