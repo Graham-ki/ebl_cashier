@@ -19,8 +19,18 @@ const EXPENSE_CATEGORIES = [
   "Other"
 ];
 
+type Expense = {
+  id: string;
+  item: string;
+  amount_spent: number;
+  department: string;
+  mode_of_payment?: string;
+  account?: string;
+  date: string;
+};
+
 export default function ExpensesLedgerPage() {
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
@@ -34,13 +44,29 @@ export default function ExpensesLedgerPage() {
     mode_of_payment: "",
     account: "",
   });
-  const [editExpense, setEditExpense] = useState<any>(null);
+  const [editExpense, setEditExpense] = useState<Expense | null>(null);
+  const [existingItems, setExistingItems] = useState<string[]>([]);
 
   // Fetch all necessary data
   useEffect(() => {
     fetchExpenses(filter);
     fetchFinancialData();
+    fetchExistingItems();
   }, [filter]);
+
+  const fetchExistingItems = async () => {
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("item");
+    
+    if (error) {
+      console.error("Error fetching existing items:", error);
+      return;
+    }
+    
+    const uniqueItems = Array.from(new Set(data.map(item => item.item)));
+    setExistingItems(uniqueItems);
+  };
 
   // Fetch financial data (income and expenses totals)
   const fetchFinancialData = async () => {
@@ -50,23 +76,21 @@ export default function ExpensesLedgerPage() {
       // Fetch total available amount from finance table
       const { data: financeData, error: financeError } = await supabase
         .from("finance")
-        .select("amount_available")
-        .eq("submittedby", "Cashier");
+        .select("amount_available");
 
       if (financeError) throw financeError;
 
-      const totalAvailable = financeData.reduce((sum, entry) => sum + (entry.amount_available || 0), 0);
+      const totalAvailable = financeData.reduce((sum: number, entry: any) => sum + (entry.amount_available || 0), 0);
       setTotalIncome(totalAvailable);
 
       // Fetch total expenses from expenses table
       const { data: expensesData, error: expensesError } = await supabase
         .from("expenses")
-        .select("amount_spent")
-        .eq("submittedby", "Cashier");
+        .select("amount_spent");
 
       if (expensesError) throw expensesError;
 
-      const totalExpended = expensesData.reduce((sum, entry) => sum + (entry.amount_spent || 0), 0);
+      const totalExpended = expensesData.reduce((sum: number, entry: any) => sum + (entry.amount_spent || 0), 0);
       setTotalExpenses(totalExpended);
 
       // Calculate balance forward
@@ -108,7 +132,7 @@ export default function ExpensesLedgerPage() {
     }
 
     try {
-      let query = supabase.from("expenses").select("*").eq("submittedby", "Cashier").order('date',{ascending:false});
+      let query = supabase.from("expenses").select("*").order('date', {ascending: false});
 
       if (startDate && endDate) {
         query = query.gte("date", startDate.toISOString()).lte("date", endDate.toISOString());
@@ -129,7 +153,10 @@ export default function ExpensesLedgerPage() {
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData({ 
+      ...formData, 
+      [name]: name === "amount_spent" ? Number(value) : value 
+    });
     
     // Reset customItem when selecting a non-"Other" category
     if (name === "item" && value !== "Other") {
@@ -143,7 +170,7 @@ export default function ExpensesLedgerPage() {
     const finalItem = formData.item === "Other" ? formData.customItem : formData.item;
     
     if (!finalItem || !formData.amount_spent || !formData.department) {
-      alert("Please fill in all required fields.");
+      alert("Please fill in all required fields (Item, Amount, and Department).");
       return;
     }
 
@@ -154,8 +181,8 @@ export default function ExpensesLedgerPage() {
         item: finalItem,
         amount_spent: formData.amount_spent,
         department: formData.department,
-        mode_of_payment: formData.mode_of_payment,
-        account: formData.account,
+        mode_of_payment: formData.mode_of_payment || null,
+        account: formData.account || null,
         submittedby: "Cashier",
       };
 
@@ -167,7 +194,7 @@ export default function ExpensesLedgerPage() {
       if (error) throw error;
 
       // Refresh all data
-      await Promise.all([fetchExpenses(filter), fetchFinancialData()]);
+      await Promise.all([fetchExpenses(filter), fetchFinancialData(), fetchExistingItems()]);
 
       // Reset form
       setFormData({ 
@@ -180,7 +207,7 @@ export default function ExpensesLedgerPage() {
       });
       setEditExpense(null);
       
-      alert("Expense successfully submitted!");
+      alert(`Expense successfully ${editExpense ? "updated" : "added"}!`);
     } catch (error) {
       console.error("Error submitting expense:", error);
       alert("Error submitting expense. Please check console for details.");
@@ -190,17 +217,17 @@ export default function ExpensesLedgerPage() {
   };
 
   // Handle edit action
-  const handleEdit = (expense: any) => {
+  const handleEdit = (expense: Expense) => {
     setEditExpense(expense);
-    // Check if the expense item is in our predefined categories
-    const isPredefinedCategory = EXPENSE_CATEGORIES.includes(expense.item);
+    // Check if the expense item is in our existing items or predefined categories
+    const isExistingItem = existingItems.includes(expense.item) || EXPENSE_CATEGORIES.includes(expense.item);
     setFormData({
-      item: isPredefinedCategory ? expense.item : "Other",
-      customItem: isPredefinedCategory ? "" : expense.item,
+      item: isExistingItem ? expense.item : "Other",
+      customItem: isExistingItem ? "" : expense.item,
       amount_spent: expense.amount_spent,
       department: expense.department,
-      mode_of_payment: expense.mode_of_payment,
-      account: expense.account,
+      mode_of_payment: expense.mode_of_payment || "",
+      account: expense.account || "",
     });
   };
 
@@ -214,7 +241,7 @@ export default function ExpensesLedgerPage() {
       if (error) throw error;
 
       // Refresh all data
-      await Promise.all([fetchExpenses(filter), fetchFinancialData()]);
+      await Promise.all([fetchExpenses(filter), fetchFinancialData(), fetchExistingItems()]);
       
       alert("Expense successfully deleted!");
     } catch (error) {
@@ -231,8 +258,8 @@ export default function ExpensesLedgerPage() {
       Item: expense.item,
       "Amount Spent": expense.amount_spent,
       Department: expense.department,
-      "Mode of Payment": expense.mode_of_payment,
-      Account: expense.account,
+      "Mode of Payment": expense.mode_of_payment || "N/A",
+      Account: expense.account || "N/A",
       Date: new Date(expense.date).toLocaleDateString(),
     }));
 
@@ -243,7 +270,7 @@ export default function ExpensesLedgerPage() {
     // Create download link and trigger click
     const link = document.createElement("a");
     link.href = URL.createObjectURL(csvBlob);
-    link.download = "expenses.csv";
+    link.download = `expenses_${new Date().toISOString().slice(0,10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -259,16 +286,16 @@ export default function ExpensesLedgerPage() {
 
       {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-green-500">
-          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Total Income</h2>
+        <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
+          <h2 className="text-lg font-semibold text-gray-600">Total Income</h2>
           <p className="text-2xl font-bold">UGX {totalIncome.toLocaleString()}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-red-500">
-          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Total Expenses</h2>
+        <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-red-500">
+          <h2 className="text-lg font-semibold text-gray-600">Total Expenses</h2>
           <p className="text-2xl font-bold">UGX {totalExpenses.toLocaleString()}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border-l-4 border-blue-500">
-          <h2 className="text-lg font-semibold text-gray-600 dark:text-gray-300">Balance Forward</h2>
+        <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
+          <h2 className="text-lg font-semibold text-gray-600">Balance Forward</h2>
           <p className="text-2xl font-bold">UGX {balanceForward.toLocaleString()}</p>
         </div>
       </div>
@@ -283,10 +310,11 @@ export default function ExpensesLedgerPage() {
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 filter === f
                   ? "bg-blue-600 text-white"
-                  : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200"
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-800"
               }`}
+              disabled={loading}
             >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === "all" ? "All Expenses" : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>
@@ -303,19 +331,20 @@ export default function ExpensesLedgerPage() {
       </div>
 
       {/* Add/Edit Expense Form */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">
           {editExpense ? "Edit Expense" : "Add New Expense"}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Item *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Item *</label>
             <select
               name="item"
               value={formData.item}
               onChange={handleInputChange}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
+              required
             >
               <option value="">Select an item</option>
               {EXPENSE_CATEGORIES.map(category => (
@@ -330,53 +359,59 @@ export default function ExpensesLedgerPage() {
                   placeholder="Specify item name"
                   value={formData.customItem}
                   onChange={handleInputChange}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={loading}
+                  required
                 />
               </div>
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (UGX) *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount (UGX) *</label>
             <input
               type="number"
               name="amount_spent"
               placeholder="Amount"
               value={formData.amount_spent || ""}
               onChange={handleInputChange}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
+              min="0"
+              step="0.01"
+              required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
             <input
               type="text"
               name="department"
               placeholder="Department/person"
               value={formData.department}
               onChange={handleInputChange}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
+              required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Source Account</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Source Account</label>
             <select
               name="mode_of_payment"
               value={formData.mode_of_payment}
               onChange={handleInputChange}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               disabled={loading}
             >
               <option value="">Select</option>
               <option value="Cash">Cash</option>
               <option value="Mobile Money">Mobile Money</option>
+              <option value="Bank">Bank</option>
             </select>
           </div>
           {formData.mode_of_payment && formData.mode_of_payment !== "Cash" && (
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 {formData.mode_of_payment === "Mobile Money" ? "Mobile Money Provider" : "Bank Name"}
               </label>
               <input
@@ -385,7 +420,7 @@ export default function ExpensesLedgerPage() {
                 placeholder={formData.mode_of_payment === "Mobile Money" ? "e.g. MTN, Airtel" : "Bank name"}
                 value={formData.account}
                 onChange={handleInputChange}
-                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={loading}
               />
             </div>
@@ -430,52 +465,52 @@ export default function ExpensesLedgerPage() {
       </div>
 
       {/* Expenses Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
         {loading && !expenses.length ? (
           <div className="p-8 text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading expenses...</p>
+            <p className="mt-2 text-gray-600">Loading expenses...</p>
           </div>
         ) : expenses.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-gray-600 dark:text-gray-400">No expenses found</p>
+            <p className="text-gray-600">No expenses found</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Item</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Source Account</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Details</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source Account</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {expenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">{expense.item}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">UGX {expense.amount_spent.toLocaleString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.department}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.mode_of_payment || "N/A"}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{expense.account || "N/A"}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{expense.item}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">UGX {expense.amount_spent.toLocaleString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{expense.department}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{expense.mode_of_payment || "N/A"}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{expense.account || "N/A"}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(expense.date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => handleEdit(expense)}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+                        className="text-blue-600 hover:text-blue-900 mr-4"
                         disabled={loading}
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(expense.id)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                        className="text-red-600 hover:text-red-900"
                         disabled={loading}
                       >
                         Delete
