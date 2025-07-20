@@ -1,22 +1,23 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// Predefined expense categories
+// Updated expense categories
 const EXPENSE_CATEGORIES = [
-  "Labour",
-  "Salary",
-  "Wage",
-  "Repairs",
-  "Stock",
+  "Vehicle",
+  "Machinery",
+  "Transport",
   "Allowance",
-  "Utility/Welfare",
-  "Other"
+  "Field",
+  "Construction",
+  "Drawings",
+  "Food",
+  "Hires"
 ];
 
 type Expense = {
@@ -47,6 +48,7 @@ export default function ExpensesLedgerPage() {
   const [editExpense, setEditExpense] = useState<Expense | null>(null);
   const [existingItems, setExistingItems] = useState<string[]>([]);
   const [showNotice, setShowNotice] = useState(true);
+  const [showCustomInput, setShowCustomInput] = useState(false);
 
   // Fetch all necessary data
   useEffect(() => {
@@ -159,16 +161,15 @@ export default function ExpensesLedgerPage() {
       [name]: name === "amount_spent" ? Number(value) : value 
     });
     
-    // Reset customItem when selecting a non-"Other" category
-    if (name === "item" && value !== "Other") {
-      setFormData(prev => ({ ...prev, customItem: "" }));
+    if (name === "item") {
+      setShowCustomInput(value === "Other");
     }
   };
 
   // Submit expense (add or update)
   const submitExpense = async () => {
     // Determine the final item name (use customItem if "Other" was selected)
-    const finalItem = formData.item === "Other" ? formData.customItem : formData.item;
+    const finalItem = showCustomInput ? formData.customItem : formData.item;
     
     if (!finalItem || !formData.amount_spent || !formData.department) {
       alert("Please fill in all required fields (Item, Amount, and Department).");
@@ -207,6 +208,7 @@ export default function ExpensesLedgerPage() {
         account: "" 
       });
       setEditExpense(null);
+      setShowCustomInput(false);
       
       alert(`Expense successfully ${editExpense ? "updated" : "added"}!`);
     } catch (error) {
@@ -230,6 +232,7 @@ export default function ExpensesLedgerPage() {
       mode_of_payment: expense.mode_of_payment || "",
       account: expense.account || "",
     });
+    setShowCustomInput(!isExistingItem);
   };
 
   // Handle delete action
@@ -340,7 +343,7 @@ export default function ExpensesLedgerPage() {
         {/* Dismissible notice */}
         {showNotice && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md relative">
-            <p className="text-blue-800 text-sm">Please endeavor to select from the existing items list, to enable organized data</p>
+            <p className="text-blue-800 text-sm">Please select from the predefined items or choose "Other" to add a new item</p>
             <button 
               onClick={() => setShowNotice(false)}
               className="absolute top-1 right-1 text-blue-500 hover:text-blue-700"
@@ -356,40 +359,67 @@ export default function ExpensesLedgerPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Item *</label>
-            <select
-              name="item"
-              value={formData.item}
-              onChange={handleInputChange}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              disabled={loading}
-              required
-            >
-              <option value="">Select an item</option>
-              {/* Existing items from database */}
-              <optgroup label="Existing Items">
-                {existingItems.map(item => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </optgroup>
-              {/* Predefined categories */}
-              <optgroup label="Categories">
-                {EXPENSE_CATEGORIES.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </optgroup>
-            </select>
-            {formData.item === "Other" && (
-              <div className="mt-2">
+            {!showCustomInput ? (
+              <>
+                <select
+                  name="item"
+                  value={formData.item}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={loading}
+                  required
+                >
+                  <option value="">Select an item</option>
+                  {/* Predefined categories */}
+                  <optgroup label="Expense Categories">
+                    {EXPENSE_CATEGORIES.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </optgroup>
+                  {/* Existing items from database */}
+                  {existingItems.length > 0 && (
+                    <optgroup label="Previously Used Items">
+                      {existingItems
+                        .filter(item => !EXPENSE_CATEGORIES.includes(item))
+                        .map((item) => (
+                          <option key={item} value={item}>{item}</option>
+                        ))}
+                    </optgroup>
+                  )}
+                  <option value="Other">Other (specify below)</option>
+                </select>
+                {formData.item === "Other" && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomInput(true)}
+                    className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    + Add custom item
+                  </button>
+                )}
+              </>
+            ) : (
+              <div>
                 <input
                   type="text"
                   name="customItem"
-                  placeholder="Specify item name"
+                  placeholder="Enter new item name"
                   value={formData.customItem}
                   onChange={handleInputChange}
                   className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={loading}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomInput(false);
+                    setFormData(prev => ({ ...prev, customItem: "" }));
+                  }}
+                  className="mt-2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  ← Back to item list
+                </button>
               </div>
             )}
           </div>
@@ -466,6 +496,7 @@ export default function ExpensesLedgerPage() {
                   mode_of_payment: "", 
                   account: "" 
                 });
+                setShowCustomInput(false);
               }}
               className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md font-medium transition-colors"
               disabled={loading}
